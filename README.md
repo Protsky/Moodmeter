@@ -2,8 +2,8 @@
 
 **how to read moods online _(fast)_**
 
-Un misuratore di umore per coppie, in stile *How to Sell Drugs Online (Fast)*: schermo scuro, verde neon, finestre `.exe` retrò ed effetto CRT.
-Ognuno imposta il proprio umore su un quadrante con la lancetta, e l'altro lo vede **in tempo reale** sul suo telefono.
+Un misuratore di umore per due, in stile *How to Sell Drugs Online (Fast)*: schermo scuro, verde neon, finestre `.exe` retrò ed effetto CRT.
+Ognuno imposta il proprio umore su un quadrante con la lancetta e lo vedete entrambi **in tempo reale**, ognuno sul suo telefono.
 
 È una **PWA**: si apre da qualsiasi browser e si installa sulla schermata Home di Android e iPhone come un'app vera, funziona anche offline.
 
@@ -14,14 +14,14 @@ Ognuno imposta il proprio umore su un quadrante con la lancetta, e l'altro lo ve
 - **Due parole**: una nota breve (max 140 caratteri) che appare come un post-it
 - **Manda al volo**: 💋 bacio, 🫂 abbraccio, 👀 ti penso, ☕ caffè?, 🍕 pizza?
 - **log.txt**: lo storico degli ultimi aggiornamenti di entrambi
-- **Notifiche** quando il partner cambia umore (con l'app aperta o in background recente)
+- **Notifiche** quando arriva un nuovo umore o un messaggio (con l'app aperta o in background recente)
 - **Offline**: l'app si apre anche senza rete e invia appena torna la connessione
 
 ## Come si usa
 
 1. Apri il sito, scrivi il tuo nome e scegli un avatar.
-2. Premi **Crea una stanza nuova** e manda il link al partner (Copia, Condividi o WhatsApp).
-3. Il partner apre il link, sceglie nome e avatar, ed è dentro.
+2. Premi **Crea una stanza nuova** e manda il link (Copia, Condividi o WhatsApp).
+3. Chi riceve il link lo apre, sceglie nome e avatar, ed è dentro.
 4. Installala: **Android/Chrome** → menu ⋮ → *Installa app*; **iPhone/Safari** → tasto Condividi → *Aggiungi alla schermata Home*.
 
 ## Online
@@ -44,7 +44,7 @@ Non c'è un backend da gestire. I due telefoni si scambiano messaggi tramite [nt
 - Il codice è nella parte `#…` del link, che il browser non invia mai al server che ospita il sito.
 - ntfy.sh conserva i messaggi per circa 12 ore: per questo l'app ripubblica il tuo ultimo stato ogni 3 ore quando è aperta, e ognuno tiene in memoria l'ultimo umore ricevuto.
 
-Chi ha il link entra nella stanza: condividilo solo con il partner.
+Chi ha il link entra nella stanza: non condividerlo con nessun altro.
 
 **Server personalizzato**: se hai un tuo server ntfy, aggiungi `&s=https://tuo-server` al link della stanza (es. `…/#r=XXXXX-XXXXX-XXXXX-XXXXX&s=https://ntfy.example.com`).
 
@@ -52,7 +52,7 @@ Chi ha il link entra nella stanza: condividilo solo con il partner.
 
 - Le notifiche arrivano solo se l'app è aperta o è stata in background da poco: senza un server push dedicato i browser non possono svegliare un'app chiusa.
 - Su iPhone notifiche e installazione richiedono iOS 16.4+ e l'app aggiunta alla schermata Home.
-- Se il partner non apre l'app per più di 12 ore e tu la installi su un **nuovo** telefono, vedrai il suo umore solo quando la riapre.
+- Se installi l'app su un **nuovo** telefono e dall'altra parte nessuno la apre da più di 12 ore, il suo umore compare solo alla prossima apertura.
 
 ## Sviluppo in locale
 

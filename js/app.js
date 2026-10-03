@@ -6,7 +6,7 @@ const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
 // ntfy.sh tiene i messaggi ~12h: ripubblichiamo il nostro ultimo stato ogni 3h
-// così il partner lo ritrova anche se apre l'app molto dopo.
+// così lo ritrova anche chi apre l'app molto dopo.
 const REPUBLISH_MS = 3 * 3600e3;
 const STALE_MS = 24 * 3600e3;
 const LOG_MAX = 80;
@@ -209,7 +209,7 @@ function renderPeer() {
   $('#peerEmpty').hidden = !!p;
   $('#peerView').hidden = !p;
   if (!p) {
-    $('#peerTitle').textContent = 'partner_adesso.exe';
+    $('#peerTitle').textContent = 'in_attesa.exe';
     return;
   }
   $('#peerTitle').textContent = `${p.name.toLowerCase().replace(/\s+/g, '_')}_adesso.exe`;
@@ -227,6 +227,7 @@ function renderPeer() {
     ul.append(li);
   }
   ul.hidden = !p.needs.length;
+  ul.setAttribute('aria-label', `Cosa serve a ${p.name}`);
   $('#peerNote').hidden = !p.note;
   $('#peerNote').textContent = p.note;
   renderPeerAgo();
@@ -395,7 +396,7 @@ function onMessage({ payload, serverTime }) {
     if (state.seenPokes.includes(payload.pid)) return;
     state.seenPokes = [...state.seenPokes, payload.pid].slice(-50);
     store.set('seenPokes', state.seenPokes);
-    const name = cleanText(payload.name, 24) || 'Il partner';
+    const name = cleanText(payload.name, 24) || '???';
     const avatar = cleanText(payload.avatar, 8) || '👤';
     addLog({ ts: serverTime || Date.now(), who: 'peer', kind: 'poke', name, avatar, emoji: poke.emoji, label: poke.label });
     const big = document.createElement('div');
@@ -470,7 +471,7 @@ async function startRoom() {
     setNet(e.detail);
     if (e.detail === 'online') {
       maybeRepublish();
-      // Se non abbiamo notizie fresche del partner, chiediamo a chi è online di ripubblicare.
+      // Se non abbiamo notizie fresche dall'altro telefono, chiediamo a chi è online di ripubblicare.
       const p = currentPeer();
       if (!helloSent && (!p || Date.now() - p.ts > 11 * 3600e3)) {
         helloSent = true;

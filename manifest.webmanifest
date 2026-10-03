@@ -1,7 +1,7 @@
 {
   "name": "Mood Meter",
   "short_name": "Mood Meter",
-  "description": "Il misuratore di umore per due: imposta il tuo, guarda quello del partner in tempo reale.",
+  "description": "Il misuratore di umore per due: imposta il tuo e guarda il suo, in tempo reale.",
   "id": "./",
   "start_url": "./",
   "scope": "./",
