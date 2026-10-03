@@ -11,6 +11,11 @@ const REPUBLISH_MS = 3 * 3600e3;
 const STALE_MS = 24 * 3600e3;
 const LOG_MAX = 80;
 const POKE_MAX_AGE = 6 * 3600e3;
+const TODO_MAX = 100;
+const TOMBSTONE_MS = 30 * 86400e3;
+// Un messaggio ntfy può essere al massimo 4096 byte: dopo cifratura e base64 restiamo sotto.
+const CHUNK_BYTES = 2400;
+const utf8 = new TextEncoder();
 
 const store = {
   get(k, fallback) {
@@ -49,6 +54,9 @@ const state = {
   log: store.get('log', []),
   notify: store.get('notify', false),
   seenPokes: store.get('seenPokes', []),
+  todos: store.get('todos', {}), // id -> voce; quelle eliminate restano come "tombstone" per la sincronizzazione
+  lastTodoPub: store.get('lastTodoPub', 0),
+  pendingTodos: store.get('pendingTodos', false),
 };
 const draft = { mood: state.me.mood, needs: [...state.me.needs], note: state.me.note };
 const bootTime = Date.now();
@@ -56,7 +64,8 @@ let room = null;
 let peerGauge = null;
 let meGauge = null;
 let installEvent = null;
-let helloSent = false;
+let helloTimer = 0;
+let lastPeerSeen = 0;
 
 /* ---------- utilità ---------- */
 
@@ -383,9 +392,20 @@ function onMessage({ payload, serverTime }) {
     return;
   }
 
+  lastPeerSeen = Math.max(lastPeerSeen, serverTime);
+
   if (payload.kind === 'hello') {
-    // Un dispositivo nuovo è entrato: ripubblichiamo subito il nostro stato.
-    if (live && state.me.ts) publishState({ republish: true });
+    // Dall'altra parte manca qualcosa: ripubblichiamo subito umore e lista.
+    if (live) {
+      if (state.me.ts) publishState({ republish: true });
+      const all = Object.values(state.todos);
+      if (all.length) publishTodos(all, { snapshot: true });
+    }
+    return;
+  }
+
+  if (payload.kind === 'todos') {
+    onTodos(payload, serverTime, live);
     return;
   }
 
@@ -459,25 +479,32 @@ async function publishState({ republish = false } = {}) {
 }
 
 function maybeRepublish() {
-  if (state.pendingSend) return publishState();
-  if (state.me.ts && Date.now() - state.lastPub > REPUBLISH_MS) publishState({ republish: true });
+  if (state.pendingSend) publishState();
+  else if (state.me.ts && Date.now() - state.lastPub > REPUBLISH_MS) publishState({ republish: true });
+  const all = Object.values(state.todos);
+  if (state.pendingTodos || (all.length && Date.now() - state.lastTodoPub > REPUBLISH_MS)) {
+    publishTodos(all, { snapshot: true });
+  }
 }
 
 async function startRoom() {
   room?.close();
-  helloSent = false;
-  room = new Room(state.room, state.server);
+  clearTimeout(helloTimer);
+  helloTimer = 0;
+  lastPeerSeen = 0;
+  const current = (room = new Room(state.room, state.server));
   room.addEventListener('status', (e) => {
     setNet(e.detail);
-    if (e.detail === 'online') {
-      maybeRepublish();
-      // Se non abbiamo notizie fresche dall'altro telefono, chiediamo a chi è online di ripubblicare.
-      const p = currentPeer();
-      if (!helloSent && (!p || Date.now() - p.ts > 11 * 3600e3)) {
-        helloSent = true;
+    if (e.detail !== 'online') return;
+    maybeRepublish();
+    // ntfy rimanda subito i messaggi delle ultime ~12 ore. Se lì dentro non c'è niente
+    // dall'altro telefono, gli chiediamo di ripubblicare umore e lista (una volta per stanza).
+    if (helloTimer) return;
+    helloTimer = setTimeout(() => {
+      if (room === current && Date.now() - lastPeerSeen > 11 * 3600e3) {
         room.publish({ v: 1, kind: 'hello', id: state.profile.id }).catch(() => {});
       }
-    }
+    }, 4000);
   });
   room.addEventListener('message', (e) => onMessage(e.detail));
   try {
@@ -503,15 +530,240 @@ function joinRoom(code, server = DEFAULT_SERVER) {
     store.set('delivered', 0);
     state.lastPub = 0;
     store.set('lastPub', 0);
-    // Il nostro ultimo stato va reinviato nella nuova stanza.
+    // Il nostro ultimo stato e la lista vanno reinviati nella nuova stanza.
     if (state.me.ts) {
       state.pendingSend = true;
       store.set('pendingSend', true);
+    }
+    state.lastTodoPub = 0;
+    store.set('lastTodoPub', 0);
+    if (Object.keys(state.todos).length) {
+      state.pendingTodos = true;
+      store.set('pendingTodos', true);
     }
   }
   fillShareBoxes();
   renderPeer();
   startRoom();
+}
+
+/* ---------- lista delle cose da fare (condivisa) ---------- */
+
+// Ogni voce si sincronizza da sola: vince la versione con `updated` più recente.
+// Le voci eliminate restano come tombstone per un po', così l'eliminazione arriva anche dall'altra parte.
+
+function sanitizeTodo(t) {
+  if (!t || typeof t !== 'object' || typeof t.id !== 'string' || !/^[0-9a-f]{8,32}$/.test(t.id)) return null;
+  const created = Number(t.created);
+  const updated = Number(t.updated);
+  if (!Number.isFinite(created) || !Number.isFinite(updated) || updated > Date.now() + 5 * 60e3) return null;
+  const deleted = t.deleted === true;
+  const text = deleted ? '' : cleanText(t.text, 120);
+  if (!deleted && !text) return null;
+  return {
+    id: t.id,
+    text,
+    done: t.done === true,
+    deleted,
+    created,
+    updated,
+    by: cleanText(t.by, 8) || '👤',
+    byName: cleanText(t.byName, 24),
+    doneBy: cleanText(t.doneBy, 8),
+  };
+}
+
+// a vince su b? A parità di orario decide il contenuto, così i due telefoni arrivano allo stesso risultato.
+function wins(a, b) {
+  if (!b) return true;
+  if (a.updated !== b.updated) return a.updated > b.updated;
+  const key = (t) => `${t.deleted ? 1 : 0}${t.done ? 1 : 0}${t.text}`;
+  return key(a) > key(b);
+}
+
+function saveTodos() {
+  const cutoff = Date.now() - TOMBSTONE_MS;
+  for (const [id, t] of Object.entries(state.todos)) {
+    if (t.deleted && t.updated < cutoff) delete state.todos[id];
+  }
+  store.set('todos', state.todos);
+}
+
+function chunkTodos(items) {
+  const chunks = [];
+  let cur = [];
+  for (const t of items) {
+    cur.push(t);
+    if (cur.length > 1 && utf8.encode(JSON.stringify(cur)).length > CHUNK_BYTES) {
+      cur.pop();
+      chunks.push(cur);
+      cur = [t];
+    }
+  }
+  if (cur.length) chunks.push(cur);
+  return chunks;
+}
+
+function markTodosPending() {
+  state.pendingTodos = true;
+  store.set('pendingTodos', true);
+}
+
+// snapshot = tutta la lista ripubblicata per sincronizzare: dall'altra parte non genera avvisi.
+async function publishTodos(items, { snapshot = false } = {}) {
+  if (!room?.key) return markTodosPending();
+  // Se un invio precedente è fallito, mandiamo tutta la lista così non si perde niente.
+  if (state.pendingTodos) {
+    items = Object.values(state.todos);
+    snapshot = true;
+  }
+  const { id, name, avatar } = state.profile;
+  try {
+    for (const chunk of chunkTodos(items)) {
+      await room.publish({ v: 1, kind: 'todos', id, name, avatar, snap: snapshot, items: chunk });
+    }
+    state.lastTodoPub = Date.now();
+    store.set('lastTodoPub', state.lastTodoPub);
+    if (state.pendingTodos) {
+      state.pendingTodos = false;
+      store.set('pendingTodos', false);
+    }
+  } catch {
+    markTodosPending();
+  }
+}
+
+function onTodos(payload, serverTime, live) {
+  if (!Array.isArray(payload.items)) return;
+  const name = cleanText(payload.name, 24) || '???';
+  const avatar = cleanText(payload.avatar, 8) || '👤';
+  const events = [];
+  let changed = false;
+  for (const raw of payload.items.slice(0, 2 * TODO_MAX)) {
+    const t = sanitizeTodo(raw);
+    if (!t) continue;
+    const prev = state.todos[t.id];
+    if (!wins(t, prev)) continue;
+    state.todos[t.id] = t;
+    changed = true;
+    // Avvisiamo solo per modifiche appena fatte, non per le ripubblicazioni della lista intera.
+    if (!live || payload.snap === true || t.deleted || t.updated < serverTime - 120e3) continue;
+    if (!prev || prev.deleted) events.push(['📝', `ha aggiunto: ${t.text}`]);
+    else if (t.done && !prev.done) events.push(['✅', `ha fatto: ${t.text}`]);
+  }
+  if (!changed) return;
+  saveTodos();
+  renderTodos();
+  if (!events.length) return;
+  const shown = events.length > 2 ? [['📝', `ha aggiornato la lista (${events.length} cose)`]] : events;
+  for (const [icon, msg] of shown) toast(`${icon} ${avatar} ${name} ${msg}`, { kind: 'peer' });
+  vibrate(30);
+  notify(`${avatar} ${name}`, `${shown[0][0]} ${shown[0][1]}`);
+  bumpTitle();
+}
+
+function commitTodos(items) {
+  for (const t of items) state.todos[t.id] = t;
+  saveTodos();
+  renderTodos();
+  publishTodos(items);
+}
+
+const bump = (t) => Math.max(Date.now(), t.updated + 1);
+
+function addTodo(text) {
+  const active = Object.values(state.todos).filter((t) => !t.deleted).length;
+  if (active >= TODO_MAX) {
+    toast(`La lista è piena (${TODO_MAX} voci): togli qualcosa di fatto.`, { kind: 'error' });
+    return false;
+  }
+  const now = Date.now();
+  const { avatar, name } = state.profile;
+  commitTodos([{ id: uid(), text, done: false, deleted: false, created: now, updated: now, by: avatar, byName: name, doneBy: '' }]);
+  return true;
+}
+
+function toggleTodo(id) {
+  const prev = state.todos[id];
+  if (!prev || prev.deleted) return;
+  const done = !prev.done;
+  commitTodos([{ ...prev, done, doneBy: done ? state.profile.avatar : '', updated: bump(prev) }]);
+  if (done) vibrate(10);
+}
+
+function deleteTodo(id) {
+  const prev = state.todos[id];
+  if (!prev || prev.deleted) return;
+  commitTodos([{ ...prev, deleted: true, text: '', updated: bump(prev) }]);
+  const undo = document.createElement('div');
+  undo.className = 'undo-toast';
+  undo.innerHTML = `<span></span><button class="btn btn-small" type="button">Annulla</button>`;
+  undo.firstChild.textContent = `🗑️ Eliminato: ${prev.text}`;
+  undo.lastChild.addEventListener('click', () => {
+    const cur = state.todos[id];
+    if (cur?.deleted) commitTodos([{ ...prev, updated: bump(cur) }]);
+  });
+  toast(undo, { timeout: 6000 });
+}
+
+function clearDoneTodos() {
+  const done = Object.values(state.todos).filter((t) => t.done && !t.deleted);
+  if (done.length) commitTodos(done.map((t) => ({ ...t, deleted: true, text: '', updated: bump(t) })));
+}
+
+function renderTodos() {
+  const list = $('#todoList');
+  // Il rendering ricrea le righe: ricordiamo dov'era il focus per non perderlo (tastiera / screen reader).
+  const focused = document.activeElement?.closest?.('.todo-item');
+  const focusId = focused?.dataset.id;
+  const focusDel = document.activeElement?.classList.contains('todo-del');
+
+  const items = Object.values(state.todos).filter((t) => !t.deleted);
+  const open = items.filter((t) => !t.done).sort((a, b) => a.created - b.created);
+  const done = items.filter((t) => t.done).sort((a, b) => b.updated - a.updated);
+  list.textContent = '';
+  for (const t of [...open, ...done]) {
+    const li = document.createElement('li');
+    li.className = `todo-item${t.done ? ' done' : ''}`;
+    li.dataset.id = t.id;
+    li.innerHTML = `<label class="todo-check"><input type="checkbox"><span class="todo-box" aria-hidden="true"></span><span class="todo-text"></span></label><span class="todo-who"></span><button class="todo-del" type="button">×</button>`;
+    $('input', li).checked = t.done;
+    $('.todo-text', li).textContent = t.text;
+    const who = $('.todo-who', li);
+    who.textContent = t.by;
+    who.title = t.byName ? `Aggiunto da ${t.byName}` : '';
+    who.setAttribute('aria-label', who.title || 'Aggiunto');
+    $('.todo-del', li).setAttribute('aria-label', `Elimina: ${t.text}`);
+    list.append(li);
+  }
+  $('#todoEmpty').hidden = items.length > 0;
+  $('#todoCount').textContent = open.length ? `${open.length} da fare` : items.length ? 'tutto fatto ✨' : '';
+  $('#todoClear').hidden = !done.length;
+
+  if (focusId) {
+    const row = $(`.todo-item[data-id="${focusId}"]`, list);
+    (row && $(focusDel ? '.todo-del' : 'input', row))?.focus({ preventScroll: true });
+  }
+}
+
+function initTodos() {
+  const input = $('#todoInput');
+  $('#todoForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = cleanText(input.value, 120);
+    if (!text) return input.focus();
+    if (addTodo(text)) input.value = '';
+    input.focus();
+  });
+  $('#todoList').addEventListener('change', (e) => {
+    const row = e.target.closest('.todo-item');
+    if (row && e.target.matches('input[type=checkbox]')) toggleTodo(row.dataset.id);
+  });
+  $('#todoList').addEventListener('click', (e) => {
+    const del = e.target.closest('.todo-del');
+    if (del) deleteTodo(del.closest('.todo-item').dataset.id);
+  });
+  $('#todoClear').addEventListener('click', clearDoneTodos);
 }
 
 /* ---------- eventi UI ---------- */
@@ -754,7 +1006,9 @@ function init() {
   initEditor();
   initSettings();
   initInstall();
+  initTodos();
   renderEditor();
+  renderTodos();
   renderLog();
   renderPeer();
   readHash();

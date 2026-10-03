@@ -151,12 +151,29 @@
         </article>
       </div>
 
-      <article class="win win-log" aria-labelledby="logTitle">
-        <div class="win-bar"><span id="logTitle">log.txt</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
-        <div class="win-body terminal">
-          <ol id="log" class="log" aria-label="Storico aggiornamenti"></ol>
-        </div>
-      </article>
+      <div class="grid">
+        <article class="win win-todo" aria-labelledby="todoTitle">
+          <div class="win-bar"><span id="todoTitle">cose_da_fare.txt</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
+          <div class="win-body todo">
+            <form id="todoForm" class="todo-form">
+              <label class="sr-only" for="todoInput">Nuova cosa da fare</label>
+              <input id="todoInput" type="text" maxlength="120" autocomplete="off" enterkeyhint="done" placeholder="es. prenotare la pizza 🍕">
+              <button class="btn btn-primary btn-add" type="submit" aria-label="Aggiungi alla lista">+</button>
+            </form>
+            <p id="todoCount" class="todo-count" aria-live="polite"></p>
+            <p id="todoEmpty" class="todo-empty">&gt; lista vuota. scrivi qualcosa qui sopra: la vedete entrambi.</p>
+            <ul id="todoList" class="todo-list" aria-label="Cose da fare"></ul>
+            <button id="todoClear" class="btn btn-small" type="button" hidden>🧹 Togli le cose fatte</button>
+          </div>
+        </article>
+
+        <article class="win win-log" aria-labelledby="logTitle">
+          <div class="win-bar"><span id="logTitle">log.txt</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
+          <div class="win-body terminal">
+            <ol id="log" class="log" aria-label="Storico aggiornamenti"></ol>
+          </div>
+        </article>
+      </div>
     </section>
   </main>
 
@@ -195,7 +212,7 @@
         <h2>Notifiche</h2>
         <label class="toggle">
           <input id="notifyToggle" type="checkbox">
-          <span>Avvisami quando arriva un nuovo umore o un messaggio</span>
+          <span>Avvisami quando arriva un nuovo umore, un messaggio o una cosa da fare</span>
         </label>
         <p class="small">Funzionano finché l'app è aperta o in background recente. Su iPhone serve prima installarla nella schermata Home.</p>
       </section>

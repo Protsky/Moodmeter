@@ -13,6 +13,7 @@ Ognuno imposta il proprio umore su un quadrante con la lancetta e lo vedete entr
 - **"Mi serve…"**: coccole, spazio, fame, sonno, silenzio, cioccolato, ciclo…
 - **Due parole**: una nota breve (max 140 caratteri) che appare come un post-it
 - **Manda al volo**: 💋 bacio, 🫂 abbraccio, 👀 ti penso, ☕ caffè?, 🍕 pizza?
+- **cose_da_fare.txt**: una lista condivisa, tutti e due potete aggiungere, spuntare ed eliminare (con *Annulla*)
 - **log.txt**: lo storico degli ultimi aggiornamenti di entrambi
 - **Notifiche** quando arriva un nuovo umore o un messaggio (con l'app aperta o in background recente)
 - **Offline**: l'app si apre anche senza rete e invia appena torna la connessione
@@ -42,7 +43,9 @@ Non c'è un backend da gestire. I due telefoni si scambiano messaggi tramite [nt
 - Dal **codice della stanza** (20 caratteri casuali, 100 bit) ogni dispositivo ricava il nome del canale e una **chiave AES-256-GCM**.
 - Ogni messaggio è **cifrato end-to-end** prima di partire: ntfy.sh vede solo testo illeggibile.
 - Il codice è nella parte `#…` del link, che il browser non invia mai al server che ospita il sito.
-- ntfy.sh conserva i messaggi per circa 12 ore: per questo l'app ripubblica il tuo ultimo stato ogni 3 ore quando è aperta, e ognuno tiene in memoria l'ultimo umore ricevuto.
+- ntfy.sh conserva i messaggi per circa 12 ore: per questo l'app ripubblica il tuo ultimo stato e la lista ogni 3 ore quando è aperta, e ognuno tiene in memoria l'ultimo umore ricevuto e la lista. Se un telefono non trova niente di recente, chiede all'altro di ripubblicare.
+- La lista si sincronizza voce per voce (vince la modifica più recente), così due modifiche fatte insieme non si cancellano a vicenda.
+- ntfy.sh permette 250 messaggi al giorno per connessione: ogni modifica è un solo messaggio, quindi per un uso normale si resta molto sotto.
 
 Chi ha il link entra nella stanza: non condividerlo con nessun altro.
 

@@ -919,6 +919,193 @@ main {
   color: var(--muted);
 }
 
+/* ---------- lista cose da fare ---------- */
+
+.win-todo {
+  box-shadow: 6px 6px 0 rgba(255, 225, 77, 0.32);
+}
+
+.win-todo .win-bar {
+  background: linear-gradient(90deg, var(--yellow), #ff9f1c);
+  color: #1a1400;
+}
+
+.todo {
+  display: grid;
+  gap: 12px;
+}
+
+.todo-form {
+  display: flex;
+  gap: 8px;
+}
+
+.todo-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  background: var(--bg-2);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 16px; /* evita lo zoom automatico su iOS */
+}
+
+.todo-form input:focus {
+  border-color: var(--yellow);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 225, 77, 0.25);
+}
+
+.btn-add {
+  width: 52px;
+  padding: 0;
+  font-family: var(--pixel);
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.todo-count {
+  color: var(--yellow);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+.todo-count:empty {
+  display: none;
+}
+
+.todo-empty {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.todo-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 380px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.todo-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px dashed var(--line);
+  animation: pop 0.25s ease-out;
+}
+
+.todo-check {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.todo-check input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.todo-box {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--yellow);
+  border-radius: 3px;
+  background: var(--bg-2);
+  transition: background 0.15s, transform 0.15s;
+}
+
+.todo-check input:checked + .todo-box {
+  background: var(--green);
+  border-color: var(--green);
+  transform: rotate(-8deg);
+}
+
+.todo-check input:checked + .todo-box::after {
+  content: '✓';
+  color: #04120a;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.todo-check input:focus-visible + .todo-box {
+  outline: 3px solid var(--yellow);
+  outline-offset: 2px;
+}
+
+.todo-text {
+  overflow-wrap: anywhere;
+}
+
+.todo-item.done .todo-text {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--pink);
+  text-decoration-thickness: 2px;
+}
+
+.todo-who {
+  flex-shrink: 0;
+  font-size: 1.1rem;
+  opacity: 0.85;
+}
+
+.todo-del {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.todo-del:hover {
+  color: var(--red);
+  background: rgba(255, 45, 85, 0.1);
+}
+
+#todoClear {
+  justify-self: start;
+}
+
+.undo-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.undo-toast span {
+  overflow-wrap: anywhere;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* ---------- log ---------- */
 
 .terminal {
