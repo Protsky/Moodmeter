@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mood Meter</title>
+  <meta name="description" content="Il misuratore di umore per due: imposta il tuo e guarda il suo, in tempo reale.">
+  <meta name="theme-color" content="#07070c">
+  <meta name="color-scheme" content="dark">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mood Meter">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Vai al contenuto</a>
+  <div class="crt" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <h1 class="glitch" data-text="MOOD METER">MOOD METER</h1>
+      <p class="tagline">how to read moods online <em>(fast)</em></p>
+    </div>
+    <div class="top-actions">
+      <span id="net" class="net" data-status="idle" role="status" aria-live="polite">offline</span>
+      <button id="installBtn" class="btn btn-small" type="button" hidden>⬇ Installa</button>
+      <button id="settingsBtn" class="btn btn-icon" type="button" aria-label="Impostazioni" hidden>⚙</button>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <noscript><p class="win-body">Serve JavaScript per usare Mood Meter.</p></noscript>
+
+    <!-- ONBOARDING -->
+    <section id="onboarding" class="onboarding" hidden>
+      <article class="win" aria-labelledby="setupTitle">
+        <div class="win-bar"><span id="setupTitle">setup.exe</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
+        <div class="win-body">
+
+          <form id="stepProfile" class="step" hidden>
+            <p class="kicker">&gt; inizializzazione…</p>
+            <h2>Ciao. Chi sei?</h2>
+            <label class="field">
+              <span>Il tuo nome</span>
+              <input id="nameInput" name="name" type="text" maxlength="24" autocomplete="nickname" required placeholder="es. Moritz">
+            </label>
+            <fieldset class="field">
+              <legend>Scegli il tuo avatar</legend>
+              <div id="avatarPicker" class="avatar-picker"></div>
+            </fieldset>
+            <button class="btn btn-primary" type="submit">Avanti ▶</button>
+          </form>
+
+          <div id="stepRoom" class="step" hidden>
+            <p class="kicker">&gt; ricerca segnale…</p>
+            <h2>Collegatevi</h2>
+            <p>Uno di voi crea la stanza e manda il link: chi lo apre entra. Fatto una volta, resta salvato.</p>
+            <button id="createRoomBtn" class="btn btn-primary" type="button">🔑 Crea una stanza nuova</button>
+            <div class="or"><span>oppure</span></div>
+            <form id="joinForm" class="join-form">
+              <label class="field">
+                <span>Hai già un codice o un link?</span>
+                <input id="joinInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" aria-describedby="joinError">
+              </label>
+              <p id="joinError" class="error" role="alert"></p>
+              <button class="btn" type="submit">Entra ▶</button>
+            </form>
+          </div>
+
+          <div id="stepShare" class="step" hidden>
+            <p class="kicker">&gt; stanza creata ✓</p>
+            <h2>Ora manda il link 💌</h2>
+            <p>Chi apre questo link entra nella vostra stanza. Non condividerlo con nessun altro.</p>
+            <div class="share-box" data-share></div>
+            <button id="shareDoneBtn" class="btn btn-primary" type="button">Fatto, vai al meter ▶</button>
+          </div>
+
+        </div>
+      </article>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="dash" class="dash" hidden>
+      <div class="grid">
+        <article class="win win-peer" aria-labelledby="peerTitle">
+          <div class="win-bar"><span id="peerTitle">in_attesa.exe</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
+          <div class="win-body">
+            <div id="peerEmpty" class="peer-empty">
+              <p class="radar" aria-hidden="true">📡</p>
+              <h2>Nessun segnale, per ora</h2>
+              <p>Manda il link della stanza: appena entra e imposta il suo umore, lo vedi qui in tempo reale.</p>
+              <div class="share-box" data-share></div>
+            </div>
+            <div id="peerView" class="mood-view" hidden>
+              <div class="who"><span id="peerAvatar" class="avatar" aria-hidden="true"></span><span id="peerName"></span></div>
+              <div id="peerGauge" class="gauge"></div>
+              <div class="readout" id="peerReadout" aria-live="polite">
+                <p class="pct"><span id="peerPct">0</span>%</p>
+                <p class="label"><span id="peerEmoji" aria-hidden="true"></span> <span id="peerLabel"></span></p>
+                <p class="hint" id="peerHint"></p>
+              </div>
+              <ul id="peerNeeds" class="need-list" aria-label="Cosa gli/le serve"></ul>
+              <blockquote id="peerNote" class="note" hidden></blockquote>
+              <p class="meta"><span id="peerAgo"></span> <span id="peerStale" class="stale" hidden>· dato vecchio</span></p>
+            </div>
+          </div>
+        </article>
+
+        <article class="win win-me" aria-labelledby="meTitle">
+          <div class="win-bar"><span id="meTitle">il_mio_mood.exe</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
+          <form id="meForm" class="win-body mood-view">
+            <div class="who"><span id="meAvatar" class="avatar" aria-hidden="true"></span><span id="meName"></span> <span class="you">(tu)</span></div>
+            <div id="meGauge" class="gauge"></div>
+            <div class="readout">
+              <p class="pct"><span id="mePct">0</span>%</p>
+              <p class="label"><span id="meEmoji" aria-hidden="true"></span> <span id="meLabel"></span></p>
+              <p class="hint" id="meHint"></p>
+            </div>
+            <label class="range-label" for="moodRange">Trascina la lancetta o usa lo slider</label>
+            <input id="moodRange" class="range" type="range" min="0" max="100" step="1" value="60">
+
+            <fieldset class="field">
+              <legend>Mi serve…</legend>
+              <div id="needPicker" class="chips"></div>
+            </fieldset>
+
+            <label class="field">
+              <span>Due parole <small>(opzionale)</small></span>
+              <textarea id="noteInput" maxlength="140" rows="2" placeholder="es. giornata infinita, portami un gelato"></textarea>
+              <small class="counter" id="noteCounter" aria-live="polite">0/140</small>
+            </label>
+
+            <div class="send-row">
+              <button id="sendBtn" class="btn btn-primary btn-send" type="submit">INVIA MOOD ▶</button>
+              <p id="sendStatus" class="send-status" role="status"></p>
+            </div>
+
+            <div class="pokes">
+              <p class="pokes-title">Manda al volo:</p>
+              <div id="pokePicker" class="chips"></div>
+            </div>
+          </form>
+        </article>
+      </div>
+
+      <div class="grid">
+        <article class="win win-todo" aria-labelledby="todoTitle">
+          <div class="win-bar"><span id="todoTitle">cose_da_fare.txt</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
+          <div class="win-body todo">
+            <form id="todoForm" class="todo-form">
+              <label class="sr-only" for="todoInput">Nuova cosa da fare</label>
+              <input id="todoInput" type="text" maxlength="120" autocomplete="off" enterkeyhint="done" placeholder="es. prenotare la pizza 🍕">
+              <button class="btn btn-primary btn-add" type="submit" aria-label="Aggiungi alla lista">+</button>
+            </form>
+            <p id="todoCount" class="todo-count" aria-live="polite"></p>
+            <p id="todoEmpty" class="todo-empty">&gt; lista vuota. scrivi qualcosa qui sopra: la vedete entrambi.</p>
+            <ul id="todoList" class="todo-list" aria-label="Cose da fare"></ul>
+            <button id="todoClear" class="btn btn-small" type="button" hidden>🧹 Togli le cose fatte</button>
+          </div>
+        </article>
+
+        <article class="win win-log" aria-labelledby="logTitle">
+          <div class="win-bar"><span id="logTitle">log.txt</span><span class="win-btns" aria-hidden="true"><i>_</i><i>□</i><i>×</i></span></div>
+          <div class="win-body terminal">
+            <ol id="log" class="log" aria-label="Storico aggiornamenti"></ol>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- IMPOSTAZIONI -->
+  <dialog id="settings" class="win dialog" aria-labelledby="settingsTitle">
+    <div class="win-bar"><span id="settingsTitle">impostazioni.exe</span><button class="win-close" type="button" data-close aria-label="Chiudi">×</button></div>
+    <div class="win-body">
+      <form id="profileForm" class="settings-section">
+        <h2>Profilo</h2>
+        <label class="field">
+          <span>Nome</span>
+          <input id="setName" type="text" maxlength="24" required>
+        </label>
+        <fieldset class="field">
+          <legend>Avatar</legend>
+          <div id="setAvatar" class="avatar-picker"></div>
+        </fieldset>
+        <button class="btn" type="submit">Salva profilo</button>
+      </form>
+
+      <section class="settings-section">
+        <h2>Stanza</h2>
+        <p>Codice: <code id="roomCode"></code></p>
+        <div class="share-box" data-share></div>
+        <form id="switchForm" class="join-form">
+          <label class="field">
+            <span>Entra in un'altra stanza</span>
+            <input id="switchInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="codice o link" aria-describedby="switchError">
+          </label>
+          <p id="switchError" class="error" role="alert"></p>
+          <button class="btn" type="submit">Cambia stanza</button>
+        </form>
+      </section>
+
+      <section class="settings-section">
+        <h2>Notifiche</h2>
+        <label class="toggle">
+          <input id="notifyToggle" type="checkbox">
+          <span>Avvisami quando arriva un nuovo umore, un messaggio o una cosa da fare</span>
+        </label>
+        <p class="small">Funzionano finché l'app è aperta o in background recente. Su iPhone serve prima installarla nella schermata Home.</p>
+      </section>
+
+      <section class="settings-section" id="installSection">
+        <h2>Installa l'app</h2>
+        <p class="small" id="installHint">Android/Chrome: menu ⋮ → <b>Installa app</b>. iPhone/Safari: tasto Condividi → <b>Aggiungi alla schermata Home</b>.</p>
+      </section>
+
+      <section class="settings-section danger">
+        <h2>Zona pericolosa</h2>
+        <button id="resetBtn" class="btn btn-danger" type="button">Esci e cancella tutto da questo dispositivo</button>
+      </section>
+
+      <p class="small privacy">🔒 I messaggi sono cifrati end-to-end con una chiave ricavata dal codice della stanza: il server di sincronizzazione vede solo testo illeggibile.</p>
+    </div>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <template id="shareTpl">
+    <div class="share-link">
+      <input class="share-url" type="text" readonly aria-label="Link della stanza">
+    </div>
+    <div class="share-actions">
+      <button class="btn btn-small" type="button" data-act="copy">📋 Copia link</button>
+      <button class="btn btn-small" type="button" data-act="share" hidden>📤 Condividi</button>
+      <a class="btn btn-small" data-act="wa" target="_blank" rel="noopener">💬 WhatsApp</a>
+    </div>
+  </template>
+</body>
+</html>
