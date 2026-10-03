@@ -24,14 +24,16 @@ Ognuno imposta il proprio umore su un quadrante con la lancetta, e l'altro lo ve
 3. Il partner apre il link, sceglie nome e avatar, ed è dentro.
 4. Installala: **Android/Chrome** → menu ⋮ → *Installa app*; **iPhone/Safari** → tasto Condividi → *Aggiungi alla schermata Home*.
 
-## Pubblicarla online (GitHub Pages, gratis)
+## Online
 
-1. Su GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-2. Porta il codice sul branch `main` (merge della pull request): il workflow `.github/workflows/pages.yml` pubblica il sito da solo.
-   Puoi anche avviarlo a mano da **Actions → Pubblica su GitHub Pages → Run workflow**.
-3. Il sito sarà su `https://<tuo-utente>.github.io/<nome-repo>/`.
+👉 **https://protsky.github.io/Moodmeter/**
 
-> GitHub Pages su repository **private** richiede un piano a pagamento. In alternativa va bene qualsiasi hosting statico con HTTPS (Netlify, Vercel, Cloudflare Pages): basta caricare la cartella così com'è, non c'è nessuna build.
+Il sito è servito da GitHub Pages a partire dal branch `gh-pages`. Non va toccato a mano: a ogni push sul branch principale del repository, il workflow `.github/workflows/pages.yml` copia lì i file del sito e GitHub lo ripubblica in un paio di minuti.
+Puoi anche avviarlo a mano da **Actions → Pubblica su GitHub Pages → Run workflow**.
+
+Se il sito non risponde, controlla in **Settings → Pages** che la sorgente sia *Deploy from a branch* → `gh-pages` / `(root)`.
+
+> Va bene anche qualsiasi altro hosting statico con HTTPS (Netlify, Vercel, Cloudflare Pages): basta caricare la cartella così com'è, non c'è nessuna build.
 
 ## Come funziona la sincronizzazione (e la privacy)
 
